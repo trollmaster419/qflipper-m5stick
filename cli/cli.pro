@@ -36,16 +36,12 @@ unix|win32 {
 
 win32 {
     equals(HAS_VERSION, 0) {
-        RC_SUFFIX = -rc
-
-        contains(GIT_VERSION, .*$${RC_SUFFIX}.*) {
-            # Remove -rc suffix as it isn't allowed in Windows manifest
-            TOKENS = $$split(GIT_VERSION, -)
-            VERSION = $$first(TOKENS)
-        } else {
-            VERSION = $$GIT_VERSION
-        }
-
+        # Manifest VERSION must be numeric (x.y.z); strip leading "v" and any
+        # "-suffix" (e.g. -beta, -rc) from the git tag like "v1.0.0-beta".
+        CLEAN_VERSION = $$GIT_VERSION
+        CLEAN_VERSION ~= s/^v//
+        TOKENS = $$split(CLEAN_VERSION, -)
+        VERSION = $$first(TOKENS)
     } else: VERSION = 0.0.0
 }
 
