@@ -9,6 +9,10 @@ on:
       - 'v*'
   workflow_dispatch:
 
+# Needed for softprops/action-gh-release to create/update the GitHub Release.
+permissions:
+  contents: write
+
 jobs:
   build_windows:
     runs-on: windows-latest
