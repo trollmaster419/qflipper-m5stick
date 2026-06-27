@@ -20,13 +20,17 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Install Qt 6.4.2 (MSVC 2019 64-bit)
+      # Qt 6.4.2 (qFlipper's original target) fails to compile against the very
+      # new MSVC on windows-latest: its qvarlengtharray.h references `stdext`,
+      # which recent MSVC STL removed. 6.8 LTS dropped that usage and builds
+      # cleanly. The app only uses stable Qt6 modules, so the bump is transparent.
+      - name: Install Qt 6.8 (MSVC 2022 64-bit)
         uses: jurplel/install-qt-action@v4
         with:
-          version: '6.4.2'
+          version: '6.8.1'
           host: 'windows'
           target: 'desktop'
-          arch: 'win64_msvc2019_64'
+          arch: 'win64_msvc2022_64'
           modules: 'qt5compat qtserialport qtshadertools qtimageformats'
           cache: true
 
