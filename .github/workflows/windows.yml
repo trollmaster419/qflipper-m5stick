@@ -1,0 +1,75 @@
+name: 'Build qFlipper (Windows)'
+
+# Builds the Windows desktop app on a GitHub-hosted runner and publishes a
+# portable ZIP. Push a tag like `v1.0.0-beta` to cut a Release, or run manually
+# from the Actions tab (workflow_dispatch) to just get the build artifact.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build_windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install Qt 6.4.2 (MSVC 2019 64-bit)
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.4.2'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_msvc2019_64'
+          modules: 'qt5compat qtserialport qtshadertools qtimageformats'
+          cache: true
+
+      - name: Set up MSVC developer command prompt
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Build qFlipper
+        shell: cmd
+        run: |
+          mkdir build
+          cd build
+          qmake ..\qFlipper.pro -spec win32-msvc "CONFIG+=qtquickcompiler" || exit /b 1
+          nmake qmake_all || exit /b 1
+          nmake || exit /b 1
+          nmake install || exit /b 1
+
+      - name: Deploy Qt runtime (windeployqt)
+        shell: cmd
+        run: |
+          cd build\qFlipper
+          windeployqt --release --no-compiler-runtime --qmldir ..\..\application qFlipper.exe || exit /b 1
+          if exist qFlipper-cli.exe windeployqt --release --no-compiler-runtime qFlipper-cli.exe
+
+      - name: Package portable ZIP
+        shell: pwsh
+        run: |
+          $ver = "${{ github.ref_name }}"
+          if ([string]::IsNullOrEmpty($ver) -or $ver -eq "main") { $ver = "dev-$($env:GITHUB_SHA.Substring(0,7))" }
+          Compress-Archive -Path build\qFlipper\* -DestinationPath "qFlipper-m5stick-$ver-win64.zip" -Force
+          echo "ZIP_NAME=qFlipper-m5stick-$ver-win64.zip" >> $env:GITHUB_ENV
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qFlipper-windows
+          path: ${{ env.ZIP_NAME }}
+          if-no-files-found: error
+
+      - name: Publish Release (on tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_NAME }}
+          generate_release_notes: true
